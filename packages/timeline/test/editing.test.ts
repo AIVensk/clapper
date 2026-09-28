@@ -4,6 +4,7 @@ import { useTimeline } from "../src/hooks/useTimeline"
 import { clapSegmentToTimelineSegment } from "../src/utils/clapSegmentToTimelineSegment"
 import { trackAtPosition } from "../src/utils/trackEditing"
 import { SegmentEditionStatus, SegmentPointerEvent } from "../src/types/timeline"
+import { leftBarTrackScaleWidth, topBarTimeScaleHeight } from "../src/constants/themes"
 
 beforeEach(() => {
   useTimeline.getState().clear()
@@ -118,6 +119,29 @@ describe("timeline editing", () => {
     pointer.nativeEvent.pointerId = 7
     useTimeline.getState().handleSegmentEvent({ eventType: SegmentPointerEvent.UP, segment: clip })(pointer)
     expect(useTimeline.getState().segmentDrag).toBeUndefined()
+  })
+
+  test("ruler hits cannot begin a clip drag, but releases there finish one", async () => {
+    const id = useTimeline.getState().createTrack(Category.VIDEO)
+    const clip = (await useTimeline.getState().createClip(id, 0))!
+    const pointer = { button: 0, offsetX: leftBarTrackScaleWidth - 1, offsetY: topBarTimeScaleHeight + 20,
+      nativeEvent: { pointerId: 7, clientX: 100, clientY: 100, preventDefault() {} }, stopPropagation() {} } as any
+    const down = useTimeline.getState().handleSegmentEvent({ eventType: SegmentPointerEvent.DOWN, segment: clip })
+    down(pointer)
+    expect(useTimeline.getState().segmentDrag).toBeUndefined()
+    pointer.offsetX = leftBarTrackScaleWidth + 20
+    pointer.offsetY = topBarTimeScaleHeight - 1
+    down(pointer)
+    expect(useTimeline.getState().segmentDrag).toBeUndefined()
+    pointer.offsetY = topBarTimeScaleHeight + 20
+    down(pointer)
+    expect(useTimeline.getState().segmentDrag?.pointerId).toBe(7)
+    useTimeline.getState().updateSegmentDrag(7, 196, 100)
+    pointer.offsetX = 0
+    pointer.offsetY = 0
+    useTimeline.getState().handleSegmentEvent({ eventType: SegmentPointerEvent.UP, segment: clip })(pointer)
+    expect(useTimeline.getState().segmentDrag).toBeUndefined()
+    expect(useTimeline.getState().segments[0].startTimeInMs).toBe(1000)
   })
 
   test("empty typed tracks and moved clips survive project round trip", async () => {

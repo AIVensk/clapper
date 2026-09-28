@@ -543,6 +543,13 @@ export const useTimeline = create<TimelineStore>((set, get) => ({
   handleSegmentEvent: ({ eventType, segment }) => (event) => {
     const state = get()
     const pointer = event.nativeEvent as PointerEvent
+    // A header can visually cover a clip without handling pointer-down itself.
+    // Ignore that clip hit, but still finish an owned drag released over a ruler.
+    if (eventType !== SegmentPointerEvent.UP &&
+      (event.offsetX < leftBarTrackScaleWidth || event.offsetY < topBarTimeScaleHeight)) {
+      event.stopPropagation()
+      return false
+    }
     if (eventType === SegmentPointerEvent.UP) {
       if (state.segmentDrag?.pointerId === pointer.pointerId) state.endSegmentDrag()
     } else if (eventType === SegmentPointerEvent.DOWN) {
